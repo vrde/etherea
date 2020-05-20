@@ -1,0 +1,25 @@
+{
+  "name": "jeth",
+  "version": "0.0.1",
+  "description": "Basically jQuery for ethereum",
+  "main": "./lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watchAll"
+  },
+  "author": "@vrde",
+  "license": "MIT",
+  "dependencies": {
+    "ethers": "^4.0.47"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
+    "@babel/preset-typescript": "^7.9.0",
+    "@types/jest": "^25.2.2",
+    "babel-jest": "^26.0.1",
+    "jest": "^26.0.1",
+    "typescript": "^3.9.3"
+  }
+}
