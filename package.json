@@ -1,7 +1,7 @@
 {
-  "name": "jeth",
+  "name": "etherea",
   "version": "0.0.1",
-  "description": "Basically jQuery for ethereum",
+  "description": "Easy-to-use Ethereum tools",
   "main": "./lib/index.js",
   "scripts": {
     "build": "tsc",

@@ -6,7 +6,7 @@ export class Local extends Backend {
     return value ? JSON.parse(value) : undefined;
   }
 
-  _set(key: string, value: Serializable) {
+  _set<T extends Serializable>(key: string, value: T) {
     window.localStorage.setItem(key, JSON.stringify(value));
   }
 }

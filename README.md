@@ -1,3 +1,5 @@
-# jeth is basically jQuery for Ethereum
+WIP
 
-TBD
+# E T H E R E A
+
+Easy-to-use Ethereum tools.

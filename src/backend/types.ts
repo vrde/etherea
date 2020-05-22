@@ -1,9 +1,10 @@
 export type Serializable =
-  | void
+  | null
+  | undefined
   | string
   | number
   | boolean
-  | Array<Serializable>
+  | Serializable[]
   | { [x: string]: Serializable };
 
 export type Modifier<T extends Serializable> = (x: T) => T;
@@ -20,20 +21,20 @@ export abstract class Backend {
     this.prefix = prefix;
   }
 
-  get<T extends Serializable>(key: string, fallback?: T): T | undefined {
+  get<T extends Serializable>(key: string, fallback?: T): T {
     const value = this._get<T>(this.prefix + key);
-    return value === undefined ? fallback : value;
+    return value === undefined ? (fallback as T) : value;
   }
 
   set<T extends Serializable>(key: string, setter: Setter<T>, fallback?: T) {
     let value: T | undefined;
     if (setter instanceof Function) {
-      const prev = this.get(this.prefix + key, fallback);
-      if (prev) value = setter(prev);
+      const prev = this.get<T>(this.prefix + key, fallback);
+      value = setter(prev);
     } else {
       value = setter;
     }
-    this._set(this.prefix + key, value);
+    if (value !== undefined) this._set(this.prefix + key, value);
     return value;
   }
 
