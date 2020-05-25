@@ -1,10 +1,10 @@
-import { promisify } from "util";
 import { mkdir, writeFile, readFile } from "fs";
-import { basename, join } from "path";
+import { join, dirname } from "path";
 import { exec } from "child_process";
 import { Wallet } from "../wallet";
-import { ContractFactory, ethers } from "ethers";
+import { ethers } from "ethers";
 import { IDeployedContracts, IDeployedNetworks } from "../types";
+import { promisify } from "util";
 
 const mkdirAsync = promisify(mkdir);
 const execAsync = promisify(exec);
@@ -25,10 +25,29 @@ export interface ISolcOutput {
   version: string;
 }
 
+export function loadLibraries() {
+  const basepath = process.cwd();
+  console.log("Resolving solidity imports from", basepath);
+  const libs: string[] = [];
+  try {
+    const path = dirname(
+      require.resolve("openzeppelin-solidity/package.json", {
+        paths: [basepath],
+      })
+    );
+    libs.push("openzeppelin-solidity=" + path);
+    console.log("Using openzeppelin-solidity from", path);
+  } catch (e) {
+    console.log("Cannot find openzeppelin solidity library");
+  }
+  return libs;
+}
+
 export async function solc(contractPath: string) {
   console.log("Compile", contractPath);
+  const libs = loadLibraries();
   const { stdout, stderr } = await execAsync(
-    `solc --combined-json bin,abi ${contractPath}`
+    `solc ${libs.join(" ")} --combined-json bin,abi ${contractPath}`
   );
   const output: ISolcOutput = JSON.parse(stdout);
   return output["contracts"];
@@ -39,11 +58,12 @@ export async function compileAndDeploy(contractPath: string, wallet: Wallet) {
   const deployedContracts: IDeployedContracts = {};
   const networkId = wallet.networkId;
 
-  console.log(compiledContracts);
-
   for (let key of Object.keys(compiledContracts)) {
+    const [path, name] = key.split(":");
+    if (path !== contractPath) {
+      continue;
+    }
     console.log("Deploying", key);
-    const [, name] = key.split(":");
     const { abi, bin } = compiledContracts[key];
     const deployedContract = await wallet.deploy(abi, bin);
     const transaction = deployedContract.deployTransaction;
@@ -95,6 +115,7 @@ export async function build(
   );
   await mkdirAsync(outDir, { recursive: true });
   await writeFileAsync(outFilename, JSON.stringify(mergedContracts, null, 2));
+  return mergedContracts;
 }
 
 export function mergeDeployedContracts(
