@@ -11,3 +11,20 @@ export type Serializable =
 export interface IEthereum extends ethers.providers.AsyncSendable {
   enable(): Promise<any>;
 }
+
+export interface IDeployedNetworks {
+  [networkId: number]: {
+    address: string;
+    transactionHash: string;
+  };
+}
+
+export interface IDeployedContract {
+  id: string;
+  abi: string;
+  networks: IDeployedNetworks;
+}
+
+export interface IDeployedContracts {
+  [contractName: string]: IDeployedContract;
+}
