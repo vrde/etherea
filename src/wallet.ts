@@ -48,6 +48,10 @@ export abstract class Wallet {
     return this.contracts;
   }
 
+  async signMessage(message: string | Uint8Array) {
+    return await this.getSigner().signMessage(message);
+  }
+
   abstract getSigner(): ethers.Signer;
 }
 
@@ -124,7 +128,7 @@ export class NodeWallet extends Wallet {
 
   async setup() {
     this.provider = new ethers.providers.JsonRpcProvider(this.url);
-    this.address = (await this.provider.listAccounts())[0];
+    this.address = (await this.provider.listAccounts())[this.index];
     this.networkId = (await this.provider.getNetwork()).chainId;
   }
 
