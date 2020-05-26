@@ -114,10 +114,12 @@ export class NodeWallet extends Wallet {
   url: string;
   agent: string = "node";
   provider!: ethers.providers.JsonRpcProvider;
+  index: number;
 
-  constructor(state: State, url: string) {
+  constructor(state: State, url: string, index: number = 0) {
     super(state);
     this.url = url;
+    this.index = index;
   }
 
   async setup() {
@@ -130,6 +132,6 @@ export class NodeWallet extends Wallet {
     if (!this.provider) {
       throw new Error("Setup the wallet first.");
     }
-    return this.provider.getSigner();
+    return this.provider.getSigner(this.index);
   }
 }
