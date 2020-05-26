@@ -47,10 +47,55 @@ export async function solc(contractPath: string) {
   console.log("Compile", contractPath);
   const libs = loadLibraries();
   const { stdout, stderr } = await execAsync(
-    `solc ${libs.join(" ")} --combined-json bin,abi ${contractPath}`
+    `solc ${libs.join(" ")} --optimize --combined-json bin,abi ${contractPath}`
   );
   const output: ISolcOutput = JSON.parse(stdout);
   return output["contracts"];
+}
+
+export async function compile(contractPath: string) {
+  const compiledContracts = await solc(contractPath);
+  const result: ICompiledContracts = {};
+  for (let key of Object.keys(compiledContracts)) {
+    const [path, name] = key.split(":");
+    if (path === contractPath) {
+      result[name] = compiledContracts[key];
+    }
+  }
+  return result;
+}
+
+export async function deploy(
+  compiledContracts: ICompiledContracts,
+  wallet: Wallet
+) {
+  const deployedContracts: IDeployedContracts = {};
+  const networkId = wallet.networkId;
+  for (let name of Object.keys(compiledContracts)) {
+    const { abi, bin } = compiledContracts[name];
+    const deployedContract = await wallet.deploy(abi, bin);
+    const transaction = deployedContract.deployTransaction;
+    const receipt = await transaction.wait();
+
+    if (!transaction.hash) {
+      throw new Error("Cannot find transaction hash, deploy failed");
+    }
+
+    const networks: IDeployedNetworks = {};
+
+    networks[networkId] = {
+      address: deployedContract.address,
+      transactionHash: transaction.hash,
+    };
+
+    deployedContracts[name] = {
+      id: ethers.utils.keccak256("0x" + bin),
+      abi,
+      networks,
+    };
+  }
+
+  return deployedContracts;
 }
 
 export async function compileAndDeploy(contractPath: string, wallet: Wallet) {
@@ -73,7 +118,7 @@ export async function compileAndDeploy(contractPath: string, wallet: Wallet) {
       throw new Error("Cannot find transaction hash, deploy failed");
     }
 
-    console.log("\tBlock number", transaction.blockNumber);
+    console.log("\tBlock number", receipt.blockNumber);
     console.log("\tGas price", transaction.gasPrice.toString());
     console.log("\tGas used", receipt.gasUsed?.toString());
     console.log("\tContract address", deployedContract.address);

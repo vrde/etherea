@@ -3,7 +3,10 @@ import { State } from "./state";
 import { Local, Memory } from "./backend";
 import { IEthereum } from "./types";
 
+export * as ethers from "ethers";
+export * as signature from "./signature";
 export { Wallet } from "./wallet";
+export * as to from "./to";
 
 declare global {
   interface Window {
@@ -11,7 +14,7 @@ declare global {
   }
 }
 
-export async function getWallet(endpoint?: string) {
+export async function getWallet(endpoint?: string, index?: number) {
   let wallet;
   let backend;
 
@@ -24,7 +27,7 @@ export async function getWallet(endpoint?: string) {
   const state = new State(backend);
 
   if (endpoint) {
-    wallet = new NodeWallet(state, endpoint);
+    wallet = new NodeWallet(state, endpoint, index);
   } else if (typeof window !== "undefined" && window?.ethereum) {
     wallet = new Web3Wallet(state, window.ethereum);
   } else {
