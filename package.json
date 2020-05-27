@@ -11,7 +11,7 @@
   "author": "@vrde",
   "license": "MIT",
   "dependencies": {
-    "ethers": "^4.0.47"
+    "ethers": "^5.0.0-beta.188"
   },
   "devDependencies": {
     "@babel/core": "^7.9.6",

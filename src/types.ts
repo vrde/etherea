@@ -8,7 +8,7 @@ export type Serializable =
   | Array<Serializable>
   | { [x: string]: Serializable };
 
-export interface IEthereum extends ethers.providers.AsyncSendable {
+export interface IEthereum extends ethers.providers.ExternalProvider {
   enable(): Promise<any>;
 }
 

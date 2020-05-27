@@ -3,7 +3,7 @@ import { State } from "./state";
 import { Local, Memory } from "./backend";
 import { IEthereum } from "./types";
 
-export * as ethers from "ethers";
+export { BigNumber } from "ethers";
 export * as signature from "./signature";
 export { Wallet } from "./wallet";
 export * as to from "./to";

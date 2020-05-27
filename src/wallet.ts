@@ -65,7 +65,7 @@ export class LocalWallet extends Wallet {
       this.wallet = ethers.Wallet.fromMnemonic(mnemonic);
     } else {
       this.wallet = ethers.Wallet.createRandom();
-      this.state.setMnemonic(this.wallet.mnemonic);
+      this.state.setMnemonic(this.wallet.mnemonic.phrase);
     }
     this.provider = ethers.getDefaultProvider();
     this.wallet.connect(this.provider);
