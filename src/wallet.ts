@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { State } from "./state";
 import { IEthereum, IDeployedContracts } from "./types";
+import { Backend } from "./backend";
 
 export abstract class Wallet {
   state: State;
@@ -13,8 +14,8 @@ export abstract class Wallet {
   networkId!: number;
   contracts?: { [name: string]: ethers.Contract };
 
-  constructor(state: State) {
-    this.state = state;
+  constructor(backend: Backend) {
+    this.state = new State(backend);
   }
 
   async deploy(abi: string, bytecode: string, ...args: any[]) {
@@ -86,8 +87,8 @@ export class Web3Wallet extends Wallet {
   agent: string = "web3";
   provider!: ethers.providers.JsonRpcProvider;
 
-  constructor(state: State, ethereum: IEthereum) {
-    super(state);
+  constructor(backend: Backend, ethereum: IEthereum) {
+    super(backend);
     this.ethereum = ethereum;
   }
 
@@ -120,8 +121,8 @@ export class NodeWallet extends Wallet {
   provider!: ethers.providers.JsonRpcProvider;
   index: number;
 
-  constructor(state: State, url: string, index: number = 0) {
-    super(state);
+  constructor(backend: Backend, url: string, index: number = 0) {
+    super(backend);
     this.url = url;
     this.index = index;
   }

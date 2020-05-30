@@ -16,7 +16,7 @@ declare global {
 
 export async function getWallet(endpoint?: string, index?: number) {
   let wallet;
-  let backend;
+  let backend;:
 
   if (typeof process !== "undefined" && process?.versions?.node) {
     backend = new Memory();
@@ -24,14 +24,12 @@ export async function getWallet(endpoint?: string, index?: number) {
     backend = new Local("etherea-v0.0.1:");
   }
 
-  const state = new State(backend);
-
   if (endpoint) {
-    wallet = new NodeWallet(state, endpoint, index);
+    wallet = new NodeWallet(backend, endpoint, index);
   } else if (typeof window !== "undefined" && window?.ethereum) {
-    wallet = new Web3Wallet(state, window.ethereum);
+    wallet = new Web3Wallet(backend, window.ethereum);
   } else {
-    wallet = new LocalWallet(state);
+    wallet = new LocalWallet(backend);
   }
 
   await wallet.setup();
