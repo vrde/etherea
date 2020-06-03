@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { Backend } from "./backend";
 
 export type Serializable =
   | void
@@ -27,4 +28,13 @@ export interface IDeployedContract {
 
 export interface IDeployedContracts {
   [contractName: string]: IDeployedContract;
+}
+
+export interface IWalletOptions {
+  endpoint?: string | IEthereum;
+  privateKey?: string;
+  index?: number;
+  mnemonic?: string;
+  path?: string;
+  backend?: Backend;
 }

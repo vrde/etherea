@@ -27,7 +27,6 @@ export interface ISolcOutput {
 
 export function loadLibraries() {
   const basepath = process.cwd();
-  console.log("Resolving solidity imports from", basepath);
   const libs: string[] = [];
   try {
     const path = dirname(
@@ -36,15 +35,23 @@ export function loadLibraries() {
       })
     );
     libs.push("openzeppelin-solidity=" + path);
-    console.log("Using openzeppelin-solidity from", path);
   } catch (e) {
-    console.log("Cannot find openzeppelin solidity library");
+    // console.log("Cannot find openzeppelin-solidity library");
+  }
+  try {
+    const path = dirname(
+      require.resolve("@openzeppelin/contracts/package.json", {
+        paths: [basepath],
+      })
+    );
+    libs.push("@openzeppelin/contracts=" + path);
+  } catch (e) {
+    // console.log("Cannot find @openzeppelin/solidity library");
   }
   return libs;
 }
 
 export async function solc(contractPath: string) {
-  console.log("Compile", contractPath);
   const libs = loadLibraries();
   const { stdout, stderr } = await execAsync(
     `solc ${libs.join(" ")} --optimize --combined-json bin,abi ${contractPath}`
@@ -109,6 +116,7 @@ export async function compileAndDeploy(contractPath: string, wallet: Wallet) {
       continue;
     }
     console.log("Deploying", key);
+
     const { abi, bin } = compiledContracts[key];
     const deployedContract = await wallet.deploy(abi, bin);
     const transaction = deployedContract.deployTransaction;
