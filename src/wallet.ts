@@ -63,21 +63,21 @@ export async function wallet(options: IWalletOptions = {}) {
     if (NETWORKS.includes(endpoint)) {
       provider = ethers.getDefaultProvider(endpoint);
       ethersWallet = getDefaultWallet();
-      ethersWallet.connect(provider);
+      ethersWallet = ethersWallet.connect(provider);
       address = ethersWallet.address;
       signer = ethersWallet;
     } else if (endpoint.startsWith("http")) {
       provider = new ethers.providers.JsonRpcProvider(endpoint);
       if (mnemonic || privateKey) {
         ethersWallet = getDefaultWallet();
-        ethersWallet.connect(provider);
+        ethersWallet = ethersWallet.connect(provider);
         address = ethersWallet.address;
         signer = ethersWallet;
       } else {
         const accounts = await provider.listAccounts();
         if (accounts.length === 0) {
           ethersWallet = getDefaultWallet();
-          ethersWallet.connect(provider);
+          ethersWallet = ethersWallet.connect(provider);
           address = ethersWallet.address;
           signer = ethersWallet;
         } else if (accounts[index] !== undefined) {

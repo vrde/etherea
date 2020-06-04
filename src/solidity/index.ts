@@ -115,7 +115,7 @@ export async function compileAndDeploy(contractPath: string, wallet: Wallet) {
     if (path !== contractPath) {
       continue;
     }
-    console.log("Deploying", key);
+    console.log("Deploying", key, "to network", networkId);
 
     const { abi, bin } = compiledContracts[key];
     const deployedContract = await wallet.deploy(abi, bin);
