@@ -1,9 +1,11 @@
 {
   "name": "etherea",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Easy-to-use Ethereum tools",
-  "main": "./lib/index.js",
+  "main": "lib/index.js",
+  "types": "lib/index.d.js",
   "scripts": {
+    "prepare": "tsc",
     "build": "tsc",
     "test": "jest",
     "test:watch": "jest --watchAll"
