@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile } from "fs";
+import { mkdir, writeFile, readFile, readdir } from "fs";
 import { join, dirname } from "path";
 import { exec } from "child_process";
 import { Wallet } from "../wallet";
@@ -10,6 +10,7 @@ const mkdirAsync = promisify(mkdir);
 const execAsync = promisify(exec);
 const writeFileAsync = promisify(writeFile);
 const readFileAsync = promisify(readFile);
+const readdirAsync = promisify(readdir);
 
 export interface ICompiledContract {
   abi: string;
@@ -25,34 +26,33 @@ export interface ISolcOutput {
   version: string;
 }
 
-export function loadLibraries() {
-  const basepath = process.cwd();
-  const libs: string[] = [];
-  try {
-    const path = dirname(
-      require.resolve("openzeppelin-solidity/package.json", {
-        paths: [basepath],
-      })
-    );
-    libs.push("openzeppelin-solidity=" + path);
-  } catch (e) {
-    // console.log("Cannot find openzeppelin-solidity library");
+export async function findNodeModules(basepath?: string): Promise<string> {
+  basepath = basepath !== undefined ? basepath : process.cwd();
+  const files = await readdirAsync(basepath, { withFileTypes: true });
+  const found =
+    files.filter((f) => f.isDirectory() && f.name === "node_modules").length >
+    0;
+  if (found) {
+    return join(basepath, "node_modules");
+  } else {
+    const parent = dirname(basepath);
+    if (parent === basepath) {
+      throw new Error("Cannot find node_modules");
+    } else {
+      return findNodeModules(parent);
+    }
   }
-  try {
-    const path = dirname(
-      require.resolve("@openzeppelin/contracts/package.json", {
-        paths: [basepath],
-      })
-    );
-    libs.push("@openzeppelin/contracts=" + path);
-  } catch (e) {
-    // console.log("Cannot find @openzeppelin/solidity library");
-  }
-  return libs;
+}
+
+export async function loadLibraries() {
+  const nodeModulesDir = await findNodeModules();
+  return ["@openzeppelin", "openzeppelin-solidity", "@opengsn"].map(
+    (s) => `${s}=${join(nodeModulesDir, s)}`
+  );
 }
 
 export async function solc(contractPath: string) {
-  const libs = loadLibraries();
+  const libs = await loadLibraries();
   const { stdout, stderr } = await execAsync(
     `solc ${libs.join(" ")} --optimize --combined-json bin,abi ${contractPath}`
   );
@@ -74,13 +74,14 @@ export async function compile(contractPath: string) {
 
 export async function deploy(
   compiledContracts: ICompiledContracts,
-  wallet: Wallet
+  wallet: Wallet,
+  ...args: any[]
 ) {
   const deployedContracts: IDeployedContracts = {};
   const networkId = wallet.networkId;
   for (let name of Object.keys(compiledContracts)) {
     const { abi, bin } = compiledContracts[name];
-    const deployedContract = await wallet.deploy(abi, bin);
+    const deployedContract = await wallet.deploy(abi, bin, ...args);
     const transaction = deployedContract.deployTransaction;
     const receipt = await transaction.wait();
 
@@ -105,7 +106,11 @@ export async function deploy(
   return deployedContracts;
 }
 
-export async function compileAndDeploy(contractPath: string, wallet: Wallet) {
+export async function compileAndDeploy(
+  contractPath: string,
+  wallet: Wallet,
+  ...args: any[]
+) {
   const compiledContracts = await solc(contractPath);
   const deployedContracts: IDeployedContracts = {};
   const networkId = wallet.networkId;
@@ -118,7 +123,7 @@ export async function compileAndDeploy(contractPath: string, wallet: Wallet) {
     console.log("Deploying", key, "to network", networkId);
 
     const { abi, bin } = compiledContracts[key];
-    const deployedContract = await wallet.deploy(abi, bin);
+    const deployedContract = await wallet.deploy(abi, bin, ...args);
     const transaction = deployedContract.deployTransaction;
     const receipt = await transaction.wait();
 
@@ -152,11 +157,12 @@ export async function compileAndDeploy(contractPath: string, wallet: Wallet) {
 export async function build(
   inContract: string,
   outDir: string,
-  wallet: Wallet
+  wallet: Wallet,
+  ...args: any[]
 ) {
   let previousContracts = {};
   const outFilename = join(outDir, "contracts.json");
-  const deployedContracts = await compileAndDeploy(inContract, wallet);
+  const deployedContracts = await compileAndDeploy(inContract, wallet, ...args);
   try {
     previousContracts = JSON.parse(await readFileAsync(outFilename, "utf8"));
   } catch (e) {

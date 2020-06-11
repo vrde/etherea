@@ -37,4 +37,5 @@ export interface IWalletOptions {
   mnemonic?: string;
   path?: string;
   backend?: Backend;
+  disableNativeAgent?: boolean;
 }

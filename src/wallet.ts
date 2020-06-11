@@ -15,6 +15,16 @@ export async function wallet(options: IWalletOptions = {}) {
   let { endpoint, mnemonic, privateKey, index, backend } = options;
   index = index === undefined ? 0 : index;
 
+  let nativeAgent;
+
+  if (
+    !options.disableNativeAgent &&
+    typeof window !== "undefined" &&
+    window?.ethereum
+  ) {
+    nativeAgent = window.ethereum;
+  }
+
   let provider;
   let ethersWallet;
   let signer;
@@ -50,8 +60,8 @@ export async function wallet(options: IWalletOptions = {}) {
   }
 
   if (endpoint === undefined) {
-    if (typeof window !== "undefined" && window?.ethereum) {
-      endpoint = window.ethereum;
+    if (nativeAgent !== undefined) {
+      endpoint = nativeAgent;
     } else {
       endpoint = "homestead";
     }
