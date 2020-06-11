@@ -1,6 +1,6 @@
 {
   "name": "etherea",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Easy-to-use Ethereum tools",
   "main": "lib/index.js",
   "types": "lib/index.d.js",
