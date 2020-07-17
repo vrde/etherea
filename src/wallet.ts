@@ -2,6 +2,10 @@ import { ethers } from "ethers";
 import { State } from "./state";
 import { IDeployedContracts, IWalletOptions, IEthereum } from "./types";
 import { Memory, Local } from "./backend";
+//import { RelayProvider, configureGSN, HttpProvider } from "opengsn-bundle";
+import HttpProvider from "web3-providers-http";
+import { RelayProvider } from "@opengsn/gsn/dist/src/relayclient";
+import { configureGSN } from "@opengsn/gsn/dist/src/relayclient/GSNConfigurator";
 
 const NETWORKS = ["homestead", "rinkeby", "ropsten", "kovan", "goerli"];
 
@@ -25,7 +29,7 @@ export async function wallet(options: IWalletOptions = {}) {
     nativeAgent = window.ethereum;
   }
 
-  let provider;
+  let provider: ethers.providers.BaseProvider;
   let ethersWallet;
   let signer;
   let address;
@@ -40,6 +44,8 @@ export async function wallet(options: IWalletOptions = {}) {
   }
 
   const state = new State(backend);
+
+  console.log("backend state", backend, state);
 
   function getDefaultWallet() {
     let result;
@@ -77,14 +83,15 @@ export async function wallet(options: IWalletOptions = {}) {
       address = ethersWallet.address;
       signer = ethersWallet;
     } else if (endpoint.startsWith("http")) {
-      provider = new ethers.providers.JsonRpcProvider(endpoint);
+      const rpcProvider = new ethers.providers.JsonRpcProvider(endpoint);
+      provider = rpcProvider;
       if (mnemonic || privateKey) {
         ethersWallet = getDefaultWallet();
         ethersWallet = ethersWallet.connect(provider);
         address = ethersWallet.address;
         signer = ethersWallet;
       } else {
-        const accounts = await provider.listAccounts();
+        const accounts = await rpcProvider.listAccounts();
         if (accounts.length === 0) {
           ethersWallet = getDefaultWallet();
           ethersWallet = ethersWallet.connect(provider);
@@ -92,7 +99,7 @@ export async function wallet(options: IWalletOptions = {}) {
           signer = ethersWallet;
         } else if (accounts[index] !== undefined) {
           address = accounts[index];
-          signer = provider.getSigner(index);
+          signer = rpcProvider.getSigner(index);
         } else {
           throw new Error("Cannot load account number" + index);
         }
@@ -110,11 +117,64 @@ export async function wallet(options: IWalletOptions = {}) {
         throw e;
       }
     }
-    provider = new ethers.providers.Web3Provider(endpoint);
-    signer = provider.getSigner();
-    address = (await provider.listAccounts())[0];
+    const web3Provider = new ethers.providers.Web3Provider(endpoint);
+    provider = web3Provider;
+    signer = web3Provider.getSigner();
+    address = (await web3Provider.listAccounts())[0];
   }
+
   networkId = (await provider.getNetwork()).chainId;
+
+  // FIXME: refactor GSN out of this already huge function
+  // Also there should be default values the GSN network.
+  console.log("Etherea configuration", options);
+  if (
+    options?.gsn?.paymasterAddress &&
+    options?.gsn?.relayHubAddress &&
+    options?.gsn?.stakeManagerAddress
+  ) {
+    console.log("Configuring GSN");
+    const gsnConfig = configureGSN({
+      relayHubAddress: options.gsn.relayHubAddress,
+      paymasterAddress: options.gsn.paymasterAddress,
+      stakeManagerAddress: options.gsn.stakeManagerAddress,
+      gasPriceFactorPercent: 70,
+      methodSuffix: "_v4",
+      jsonStringifyRequest: true,
+      chainId: networkId,
+      relayLookupWindowBlocks: 1e5,
+      verbose: true,
+    });
+
+    let origProvider;
+    if (typeof endpoint === "string") {
+      origProvider = new HttpProvider(endpoint);
+    } else {
+      origProvider = endpoint;
+    }
+
+    console.log("origProvider", origProvider);
+
+    const gsnProvider = new RelayProvider(origProvider, gsnConfig);
+    const gsnWeb3Provider = new ethers.providers.Web3Provider(gsnProvider);
+    provider = gsnWeb3Provider;
+    if (ethersWallet?.privateKey) {
+      const privateKey = Buffer.from(
+        ethers.utils.arrayify(ethersWallet.privateKey)
+      );
+      gsnProvider.addAccount({
+        address: ethersWallet.address,
+        privateKey,
+      });
+      console.log("Private key available", {
+        address: ethersWallet.address,
+        privateKey,
+      });
+      signer = gsnWeb3Provider.getSigner(ethersWallet.address);
+    } else {
+      signer = gsnWeb3Provider.getSigner();
+    }
+  }
 
   return new Wallet(state, address, provider, signer, networkId, ethersWallet);
 }

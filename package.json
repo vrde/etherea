@@ -2,26 +2,32 @@
   "name": "etherea",
   "version": "0.0.4",
   "description": "Easy-to-use Ethereum tools",
+  "browser": "./browser/bundle.min.js",
   "main": "lib/index.js",
   "types": "lib/index.d.js",
   "scripts": {
-    "prepare": "tsc",
-    "build": "tsc",
+    "prepare": "npm run build",
+    "build": "./build.sh",
     "test": "jest",
     "test:watch": "jest --watchAll"
   },
   "author": "@vrde",
   "license": "MIT",
   "dependencies": {
-    "ethers": "^5.0.0-beta.188"
+    "@opengsn/gsn": "^0.9.0",
+    "ethers": "^5.0.5",
+    "web3-providers-http": "^1.2.9"
   },
   "devDependencies": {
-    "@babel/core": "^7.9.6",
-    "@babel/preset-env": "^7.9.6",
-    "@babel/preset-typescript": "^7.9.0",
-    "@types/jest": "^25.2.2",
-    "babel-jest": "^26.0.1",
-    "jest": "^26.0.1",
+    "@babel/core": "^7.10.5",
+    "@babel/preset-env": "^7.10.4",
+    "@babel/preset-typescript": "^7.10.4",
+    "@types/jest": "^26.0.4",
+    "babel-jest": "^26.1.0",
+    "browserify": "^16.5.1",
+    "derequire": "^2.1.1",
+    "jest": "^26.1.0",
+    "terser": "^4.8.0",
     "typescript": "^3.9.3"
   }
 }

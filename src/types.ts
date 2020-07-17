@@ -11,6 +11,9 @@ export type Serializable =
 
 export interface IEthereum extends ethers.providers.ExternalProvider {
   enable(): Promise<any>;
+  connected: boolean;
+  supportsSubscriptions(): boolean;
+  disconnect(): boolean;
 }
 
 export interface IDeployedNetworks {
@@ -38,4 +41,9 @@ export interface IWalletOptions {
   path?: string;
   backend?: Backend;
   disableNativeAgent?: boolean;
+  gsn?: {
+    paymasterAddress: string;
+    relayHubAddress: string;
+    stakeManagerAddress: string;
+  };
 }

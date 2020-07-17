@@ -131,6 +131,7 @@ export async function compileAndDeploy(
       throw new Error("Cannot find transaction hash, deploy failed");
     }
 
+    console.log("\tFrom", wallet.address);
     console.log("\tBlock number", receipt.blockNumber);
     console.log("\tGas price", transaction.gasPrice.toString());
     console.log("\tGas used", receipt.gasUsed?.toString());
