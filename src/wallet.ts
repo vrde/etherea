@@ -15,6 +15,129 @@ declare global {
   }
 }
 
+export async function getNativeWallet() {
+  if (typeof window === "undefined" || !window?.ethereum) {
+    throw new Error("Cannot initialize native wallet");
+  }
+
+  let agent = window.ethereum;
+}
+
+export async function getLocalWallet(options: IWalletOptions = {}) {
+  let { endpoint, mnemonic, privateKey, index, backend } = options;
+  index = index === undefined ? 0 : index;
+
+  let provider: ethers.providers.BaseProvider;
+  let ethersWallet;
+  let signer;
+  let address;
+  let networkId;
+  let gsnSigner;
+
+  if (typeof endpoint !== "string") {
+    throw new Error("Endpoint must be a undefined or string");
+  }
+
+  if (endpoint === undefined) {
+    endpoint = "homestead";
+  } else if (endpoint === "localhost") {
+    endpoint = "http://localhost:8545";
+  }
+
+  if (backend === undefined) {
+    if (typeof process !== "undefined" && process?.versions?.node) {
+      backend = new Memory();
+    } else {
+      backend = new Local("etherea-v0.0.1:");
+    }
+  }
+
+  const state = new State(backend);
+
+  console.log("backend state", backend, state);
+
+  function getWallet() {
+    let result;
+    if (mnemonic) {
+      result = ethers.Wallet.fromMnemonic(mnemonic, "m/44'/60'/0'/0/" + index);
+    } else if (privateKey) {
+      result = new ethers.Wallet(privateKey);
+    } else if (state.hasMnemonic()) {
+      result = ethers.Wallet.fromMnemonic(
+        state.getMnemonic(),
+        "m/44'/60'/0'/0/" + index
+      );
+    } else {
+      result = ethers.Wallet.createRandom();
+      state.setMnemonic(result.mnemonic.phrase);
+    }
+    return result;
+  }
+
+  /*if (NETWORKS.includes(endpoint)) {
+    provider = ethers.getDefaultProvider(endpoint);
+    ethersWallet = getWallet();
+    ethersWallet = ethersWallet.connect(provider);
+    address = ethersWallet.address;
+    signer = ethersWallet;
+  } else */
+  if (endpoint.startsWith("http")) {
+    const rpcProvider = new ethers.providers.JsonRpcProvider(endpoint);
+    provider = rpcProvider;
+    ethersWallet = getWallet();
+    ethersWallet = ethersWallet.connect(provider);
+    address = ethersWallet.address;
+    signer = ethersWallet;
+  } else {
+    throw new Error("Dunno what to do with endpoint");
+  }
+
+  networkId = (await provider.getNetwork()).chainId;
+
+  if (
+    options?.gsn?.paymasterAddress &&
+    options?.gsn?.relayHubAddress &&
+    options?.gsn?.stakeManagerAddress
+  ) {
+    console.log("Configuring GSN");
+    const gsnConfig = configureGSN({
+      relayHubAddress: options.gsn.relayHubAddress,
+      paymasterAddress: options.gsn.paymasterAddress,
+      stakeManagerAddress: options.gsn.stakeManagerAddress,
+      gasPriceFactorPercent: 70,
+      methodSuffix: "_v4",
+      jsonStringifyRequest: true,
+      chainId: networkId,
+      relayLookupWindowBlocks: 1e5,
+      verbose: true,
+    });
+    const origProvider = new HttpProvider(endpoint);
+    const gsnProvider = new RelayProvider(origProvider, gsnConfig);
+    const gsnWeb3Provider = new ethers.providers.Web3Provider(gsnProvider);
+    provider = gsnWeb3Provider;
+    const privateKey = Buffer.from(
+      ethers.utils.arrayify(ethersWallet.privateKey)
+    );
+    gsnProvider.addAccount({
+      address: ethersWallet.address,
+      privateKey,
+    });
+    gsnSigner = gsnWeb3Provider.getSigner(ethersWallet.address);
+  }
+
+  return new Wallet(
+    state,
+    address,
+    provider,
+    signer,
+    networkId,
+    ethersWallet,
+    gsnSigner
+  );
+}
+
+export async function getNodeWallet() {}
+
 export async function wallet(options: IWalletOptions = {}) {
   let { endpoint, mnemonic, privateKey, index, backend } = options;
   index = index === undefined ? 0 : index;
@@ -186,6 +309,7 @@ export class Wallet {
   provider: ethers.providers.Provider;
   networkId: number;
   wallet?: ethers.Wallet;
+  gsnSigner?: ethers.Signer;
 
   contracts?: { [name: string]: ethers.Contract };
 
@@ -195,7 +319,8 @@ export class Wallet {
     provider: ethers.providers.Provider,
     signer: ethers.Signer,
     networkId: number,
-    wallet?: ethers.Wallet
+    wallet?: ethers.Wallet,
+    gsnSigner?: ethers.Signer
   ) {
     this.state = state;
     this.address = address;
@@ -203,6 +328,7 @@ export class Wallet {
     this.signer = signer;
     this.networkId = networkId;
     this.wallet = wallet;
+    this.gsnSigner = gsnSigner;
   }
 
   async deploy(abi: string, bytecode: string, ...args: any[]) {
@@ -213,7 +339,11 @@ export class Wallet {
   }
 
   contract(address: string, abi: string) {
-    const contract = new ethers.Contract(address, abi, this.signer);
+    const contract = new ethers.Contract(
+      address,
+      abi,
+      this.gsnSigner || this.signer
+    );
     return contract;
   }
 
