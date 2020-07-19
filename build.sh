@@ -17,7 +17,7 @@ npx browserify tmp/index.js --standalone etherea\
     | tr -dc '\0-\177'\
     | npx derequire\
     | npx terser\
-    > browser/bundle.min.js
+    > browser/etherea.min.js
 
 # Move `tmp` back to its original position.
 mv tmp lib
