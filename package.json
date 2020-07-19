@@ -1,13 +1,10 @@
 {
   "name": "etherea",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Easy-to-use Ethereum tools",
   "browser": "browser/bundle.min.js",
   "main": "lib/index.js",
   "types": "lib/index.d.js",
-  "files": [
-    "browser"
-  ],
   "scripts": {
     "prepare": "npm run build",
     "build": "./build.sh",
