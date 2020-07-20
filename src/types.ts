@@ -34,7 +34,7 @@ export interface IDeployedContracts {
 }
 
 export interface IWalletOptions {
-  endpoint?: string | IEthereum;
+  endpoint?: string;// | IEthereum;
   privateKey?: string;
   index?: number;
   mnemonic?: string;

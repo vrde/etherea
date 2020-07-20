@@ -12,4 +12,12 @@ export class Memory extends Backend {
   _set<T extends Serializable>(key: string, value: T) {
     this.storage[key] = value;
   }
+
+  _remove(key: string) {
+    delete this.storage[key];
+  }
+
+  _keys() {
+    return Object.keys(this.storage);
+  }
 }

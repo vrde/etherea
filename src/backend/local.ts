@@ -9,4 +9,12 @@ export class Local extends Backend {
   _set<T extends Serializable>(key: string, value: T) {
     window.localStorage.setItem(key, JSON.stringify(value));
   }
+
+  _remove(key: string) {
+    window.localStorage.removeItem(key);
+  }
+
+  _keys() {
+    return Object.keys(window.localStorage);
+  }
 }

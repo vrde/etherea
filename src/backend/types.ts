@@ -16,6 +16,8 @@ export abstract class Backend {
 
   abstract _get<T extends Serializable>(key: string): T;
   abstract _set<T extends Serializable>(key: string, value: T): void;
+  abstract _remove(key: string): void;
+  abstract _keys(): string[];
 
   constructor(prefix: string = "") {
     this.prefix = prefix;
@@ -40,5 +42,19 @@ export abstract class Backend {
 
   has(key: string) {
     return this._get(this.prefix + key) !== undefined;
+  }
+
+  remove(key: string) {
+    this._remove(key);
+  }
+
+  keys() {
+    return this._keys().filter(x => x.startsWith(this.prefix));
+  }
+
+  clear() {
+    for (const key of this.keys()) {
+      this.remove(key);
+    }
   }
 }

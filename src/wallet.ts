@@ -15,23 +15,117 @@ declare global {
   }
 }
 
-export async function getNativeWallet() {
-  if (typeof window === "undefined" || !window?.ethereum) {
+export function hasNativeWallet() {
+  return !!(typeof window !== "undefined" && window?.ethereum);
+}
+
+export async function getNativeWallet(options: IWalletOptions = {}) {
+  if (!hasNativeWallet()) {
     throw new Error("Cannot initialize native wallet");
   }
 
   let agent = window.ethereum;
+  let { endpoint, backend } = options;
+  let provider: ethers.providers.BaseProvider;
+  let signer;
+  let address;
+  let networkId;
+  let networkName;
+  let gsnSigner;
+
+  if (endpoint === undefined) {
+    endpoint = "homestead";
+  } else if (endpoint === "localhost") {
+    endpoint = "http://localhost:8545";
+  }
+
+  if (backend === undefined) {
+    if (typeof process !== "undefined" && process?.versions?.node) {
+      backend = new Memory();
+    } else {
+      backend = new Local("etherea-v0.0.1:");
+    }
+  }
+
+  const state = new State(backend);
+
+  if (endpoint.startsWith("http")) {
+    const rpcProvider = new ethers.providers.JsonRpcProvider(endpoint);
+    provider = rpcProvider;
+    networkId = (await provider.getNetwork()).chainId;
+    console.log('Wanted NetworkId', networkId);
+  } else {
+    throw new Error("Dunno what to do with endpoint");
+  }
+
+  try {
+    await agent.enable();
+  } catch (e) {
+    if (e.code === 4001 || e.error?.code === -32500) {
+      throw new Error("Permission denied");
+    } else {
+      throw e;
+    }
+  }
+
+  const web3Provider = new ethers.providers.Web3Provider(agent);
+  const networkIdNative = (await web3Provider.getNetwork()).chainId;
+  networkName = (await provider.getNetwork()).name;
+  console.log('Got NetworkId', networkIdNative);
+
+  if (
+    options?.gsn?.paymasterAddress &&
+    options?.gsn?.relayHubAddress &&
+    options?.gsn?.stakeManagerAddress
+  ) {
+    const chainId = await web3Provider.send('net_version', []);
+    const gsnConfig = configureGSN({
+      relayHubAddress: options.gsn.relayHubAddress,
+      paymasterAddress: options.gsn.paymasterAddress,
+      stakeManagerAddress: options.gsn.stakeManagerAddress,
+      gasPriceFactorPercent: 70,
+      methodSuffix: "_v4",
+      jsonStringifyRequest: true,
+      chainId: chainId,
+      relayLookupWindowBlocks: 1e5,
+      verbose: true,
+    });
+    const origProvider = agent;
+    const gsnProvider = new RelayProvider(origProvider, gsnConfig);
+    const gsnWeb3Provider = new ethers.providers.Web3Provider(gsnProvider);
+    provider = gsnWeb3Provider;
+    gsnSigner = gsnWeb3Provider.getSigner();
+  } else {
+    provider = web3Provider;
+  }
+
+  signer = web3Provider.getSigner();
+  address = (await web3Provider.listAccounts())[0];
+
+  return new Wallet(
+    state,
+    address,
+    provider,
+    signer,
+    networkId,
+    networkName,
+    undefined,
+    gsnSigner
+  );
+
 }
 
 export async function getLocalWallet(options: IWalletOptions = {}) {
   let { endpoint, mnemonic, privateKey, index, backend } = options;
   index = index === undefined ? 0 : index;
 
+  let rpcProvider: ethers.providers.JsonRpcProvider;
   let provider: ethers.providers.BaseProvider;
   let ethersWallet;
   let signer;
   let address;
   let networkId;
+  let networkName;
   let gsnSigner;
 
   if (typeof endpoint !== "string") {
@@ -54,22 +148,19 @@ export async function getLocalWallet(options: IWalletOptions = {}) {
 
   const state = new State(backend);
 
-  console.log("backend state", backend, state);
-
   function getWallet() {
     let result;
     if (mnemonic) {
       result = ethers.Wallet.fromMnemonic(mnemonic, "m/44'/60'/0'/0/" + index);
     } else if (privateKey) {
       result = new ethers.Wallet(privateKey);
-    } else if (state.hasMnemonic()) {
+    } /*else if (state.hasMnemonic()) {
       result = ethers.Wallet.fromMnemonic(
         state.getMnemonic(),
         "m/44'/60'/0'/0/" + index
       );
-    } else {
+    }*/ else {
       result = ethers.Wallet.createRandom();
-      state.setMnemonic(result.mnemonic.phrase);
     }
     return result;
   }
@@ -82,7 +173,7 @@ export async function getLocalWallet(options: IWalletOptions = {}) {
     signer = ethersWallet;
   } else */
   if (endpoint.startsWith("http")) {
-    const rpcProvider = new ethers.providers.JsonRpcProvider(endpoint);
+    rpcProvider = new ethers.providers.JsonRpcProvider(endpoint);
     provider = rpcProvider;
     ethersWallet = getWallet();
     ethersWallet = ethersWallet.connect(provider);
@@ -93,13 +184,14 @@ export async function getLocalWallet(options: IWalletOptions = {}) {
   }
 
   networkId = (await provider.getNetwork()).chainId;
+  networkName = (await provider.getNetwork()).name;
 
   if (
     options?.gsn?.paymasterAddress &&
     options?.gsn?.relayHubAddress &&
     options?.gsn?.stakeManagerAddress
   ) {
-    console.log("Configuring GSN");
+    const chainId = await rpcProvider.send('net_version', []);
     const gsnConfig = configureGSN({
       relayHubAddress: options.gsn.relayHubAddress,
       paymasterAddress: options.gsn.paymasterAddress,
@@ -107,7 +199,7 @@ export async function getLocalWallet(options: IWalletOptions = {}) {
       gasPriceFactorPercent: 70,
       methodSuffix: "_v4",
       jsonStringifyRequest: true,
-      chainId: networkId,
+      chainId: chainId,
       relayLookupWindowBlocks: 1e5,
       verbose: true,
     });
@@ -131,12 +223,13 @@ export async function getLocalWallet(options: IWalletOptions = {}) {
     provider,
     signer,
     networkId,
+    networkName,
     ethersWallet,
     gsnSigner
   );
 }
 
-export async function getNodeWallet() {}
+export async function getNodeWallet() { }
 
 export async function wallet(options: IWalletOptions = {}) {
   let { endpoint, mnemonic, privateKey, index, backend } = options;
@@ -157,6 +250,7 @@ export async function wallet(options: IWalletOptions = {}) {
   let signer;
   let address;
   let networkId;
+  let networkName;
 
   if (backend === undefined) {
     if (typeof process !== "undefined" && process?.versions?.node) {
@@ -167,8 +261,6 @@ export async function wallet(options: IWalletOptions = {}) {
   }
 
   const state = new State(backend);
-
-  console.log("backend state", backend, state);
 
   function getDefaultWallet() {
     let result;
@@ -189,16 +281,12 @@ export async function wallet(options: IWalletOptions = {}) {
   }
 
   if (endpoint === undefined) {
-    if (nativeAgent !== undefined) {
-      endpoint = nativeAgent;
-    } else {
-      endpoint = "homestead";
-    }
+    endpoint = "homestead";
   } else if (endpoint === "localhost") {
     endpoint = "http://localhost:8545";
   }
 
-  if (typeof endpoint === "string") {
+  if (!nativeAgent) {
     if (NETWORKS.includes(endpoint)) {
       provider = ethers.getDefaultProvider(endpoint);
       ethersWallet = getDefaultWallet();
@@ -232,7 +320,7 @@ export async function wallet(options: IWalletOptions = {}) {
     }
   } else {
     try {
-      await endpoint.enable();
+      await nativeAgent.enable();
     } catch (e) {
       if (e.code === 4001 || e.error?.code === -32500) {
         throw new Error("Permission denied");
@@ -240,23 +328,22 @@ export async function wallet(options: IWalletOptions = {}) {
         throw e;
       }
     }
-    const web3Provider = new ethers.providers.Web3Provider(endpoint);
+    const web3Provider = new ethers.providers.Web3Provider(nativeAgent);
     provider = web3Provider;
     signer = web3Provider.getSigner();
     address = (await web3Provider.listAccounts())[0];
   }
 
   networkId = (await provider.getNetwork()).chainId;
+  networkName = (await provider.getNetwork()).name;
 
   // FIXME: refactor GSN out of this already huge function
   // Also there should be default values the GSN network.
-  console.log("Etherea configuration", options);
   if (
     options?.gsn?.paymasterAddress &&
     options?.gsn?.relayHubAddress &&
     options?.gsn?.stakeManagerAddress
   ) {
-    console.log("Configuring GSN");
     const gsnConfig = configureGSN({
       relayHubAddress: options.gsn.relayHubAddress,
       paymasterAddress: options.gsn.paymasterAddress,
@@ -276,8 +363,6 @@ export async function wallet(options: IWalletOptions = {}) {
       origProvider = endpoint;
     }
 
-    console.log("origProvider", origProvider);
-
     const gsnProvider = new RelayProvider(origProvider, gsnConfig);
     const gsnWeb3Provider = new ethers.providers.Web3Provider(gsnProvider);
     provider = gsnWeb3Provider;
@@ -289,17 +374,13 @@ export async function wallet(options: IWalletOptions = {}) {
         address: ethersWallet.address,
         privateKey,
       });
-      console.log("Private key available", {
-        address: ethersWallet.address,
-        privateKey,
-      });
       signer = gsnWeb3Provider.getSigner(ethersWallet.address);
     } else {
       signer = gsnWeb3Provider.getSigner();
     }
   }
 
-  return new Wallet(state, address, provider, signer, networkId, ethersWallet);
+  return new Wallet(state, address, provider, signer, networkId, networkName, ethersWallet);
 }
 
 export class Wallet {
@@ -307,9 +388,11 @@ export class Wallet {
   address: string;
   signer: ethers.Signer;
   provider: ethers.providers.Provider;
+  networkName: string;
   networkId: number;
   wallet?: ethers.Wallet;
   gsnSigner?: ethers.Signer;
+  mnemonic?: string;
 
   contracts?: { [name: string]: ethers.Contract };
 
@@ -319,6 +402,7 @@ export class Wallet {
     provider: ethers.providers.Provider,
     signer: ethers.Signer,
     networkId: number,
+    networkName: string,
     wallet?: ethers.Wallet,
     gsnSigner?: ethers.Signer
   ) {
@@ -327,8 +411,12 @@ export class Wallet {
     this.provider = provider;
     this.signer = signer;
     this.networkId = networkId;
+    this.networkName = networkName
     this.wallet = wallet;
     this.gsnSigner = gsnSigner;
+    if (this.wallet) {
+      this.mnemonic = this.wallet.mnemonic.phrase;
+    }
   }
 
   async deploy(abi: string, bytecode: string, ...args: any[]) {
@@ -365,5 +453,9 @@ export class Wallet {
 
   async signMessage(message: string | Uint8Array) {
     return await this.signer.signMessage(message);
+  }
+
+  clear() {
+    this.state.clear();
   }
 }

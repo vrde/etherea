@@ -18,4 +18,8 @@ export class State {
   setMnemonic(mnemonic: string) {
     return <string>this.backend.set("mnemonic", mnemonic);
   }
+
+  clear() {
+    this.backend.clear();
+  }
 }
