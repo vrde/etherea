@@ -414,7 +414,7 @@ export class Wallet {
     this.networkName = networkName
     this.wallet = wallet;
     this.gsnSigner = gsnSigner;
-    if (this.wallet) {
+    if (this.wallet && this.wallet.mnemonic) {
       this.mnemonic = this.wallet.mnemonic.phrase;
     }
   }
