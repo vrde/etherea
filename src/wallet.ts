@@ -6,6 +6,7 @@ import { Memory, Local } from "./backend";
 import HttpProvider from "web3-providers-http";
 import { RelayProvider } from "@opengsn/gsn/dist/src/relayclient";
 import { configureGSN } from "@opengsn/gsn/dist/src/relayclient/GSNConfigurator";
+import { NetworkMismatch } from "./exceptions";
 
 const NETWORKS = ["homestead", "rinkeby", "ropsten", "kovan", "goerli"];
 
@@ -53,7 +54,7 @@ export async function getNativeWallet(options: IWalletOptions = {}) {
     const rpcProvider = new ethers.providers.JsonRpcProvider(endpoint);
     provider = rpcProvider;
     networkId = (await provider.getNetwork()).chainId;
-    console.log('Wanted NetworkId', networkId);
+    console.log("Wanted NetworkId", networkId);
   } else {
     throw new Error("Dunno what to do with endpoint");
   }
@@ -70,15 +71,23 @@ export async function getNativeWallet(options: IWalletOptions = {}) {
 
   const web3Provider = new ethers.providers.Web3Provider(agent);
   const networkIdNative = (await web3Provider.getNetwork()).chainId;
+  const networkNameNative = (await web3Provider.getNetwork()).name;
   networkName = (await provider.getNetwork()).name;
-  console.log('Got NetworkId', networkIdNative);
+  console.log("Got NetworkId", networkIdNative);
+  if (networkIdNative !== networkId) {
+    throw new NetworkMismatch(
+      `Wallet is connected to "${networkNameNative}", while "${networkName}" is expected.`,
+      networkNameNative,
+      networkName
+    );
+  }
 
   if (
     options?.gsn?.paymasterAddress &&
     options?.gsn?.relayHubAddress &&
     options?.gsn?.stakeManagerAddress
   ) {
-    const chainId = await web3Provider.send('net_version', []);
+    const chainId = await web3Provider.send("net_version", []);
     const gsnConfig = configureGSN({
       relayHubAddress: options.gsn.relayHubAddress,
       paymasterAddress: options.gsn.paymasterAddress,
@@ -112,7 +121,6 @@ export async function getNativeWallet(options: IWalletOptions = {}) {
     undefined,
     gsnSigner
   );
-
 }
 
 export async function getLocalWallet(options: IWalletOptions = {}) {
@@ -191,7 +199,7 @@ export async function getLocalWallet(options: IWalletOptions = {}) {
     options?.gsn?.relayHubAddress &&
     options?.gsn?.stakeManagerAddress
   ) {
-    const chainId = await rpcProvider.send('net_version', []);
+    const chainId = await rpcProvider.send("net_version", []);
     const gsnConfig = configureGSN({
       relayHubAddress: options.gsn.relayHubAddress,
       paymasterAddress: options.gsn.paymasterAddress,
@@ -229,7 +237,7 @@ export async function getLocalWallet(options: IWalletOptions = {}) {
   );
 }
 
-export async function getNodeWallet() { }
+export async function getNodeWallet() {}
 
 export async function wallet(options: IWalletOptions = {}) {
   let { endpoint, mnemonic, privateKey, index, backend } = options;
@@ -380,7 +388,15 @@ export async function wallet(options: IWalletOptions = {}) {
     }
   }
 
-  return new Wallet(state, address, provider, signer, networkId, networkName, ethersWallet);
+  return new Wallet(
+    state,
+    address,
+    provider,
+    signer,
+    networkId,
+    networkName,
+    ethersWallet
+  );
 }
 
 export class Wallet {
@@ -411,7 +427,7 @@ export class Wallet {
     this.provider = provider;
     this.signer = signer;
     this.networkId = networkId;
-    this.networkName = networkName
+    this.networkName = networkName;
     this.wallet = wallet;
     this.gsnSigner = gsnSigner;
     if (this.wallet && this.wallet.mnemonic) {
