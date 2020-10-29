@@ -4,7 +4,7 @@ import { IDeployedContracts, IWalletOptions, IEthereum } from "./types";
 import { Memory, Local } from "./backend";
 //import { RelayProvider, configureGSN, HttpProvider } from "opengsn-bundle";
 import HttpProvider from "web3-providers-http";
-import { RelayProvider } from "@opengsn/gsn/dist/src/relayclient";
+import { RelayProvider } from "@opengsn/gsn/dist/src/relayclient/RelayProvider";
 import { configureGSN } from "@opengsn/gsn/dist/src/relayclient/GSNConfigurator";
 import { NetworkMismatch } from "./exceptions";
 
