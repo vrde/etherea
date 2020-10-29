@@ -1,6 +1,6 @@
 WIP
 
-# E T H E R E A
+# 𝐸 𝑇 𝐻 𝐸 𝑅 𝐸 𝐴
 
 Easy-to-use Ethereum tools.
 
